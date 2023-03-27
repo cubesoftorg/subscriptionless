@@ -5,11 +5,11 @@ import {
   PingMessage,
   PongMessage,
 } from 'graphql-ws';
-import { DataMapper } from '@aws/dynamodb-data-mapper';
 import { APIGatewayEvent } from 'aws-lambda';
 import { GraphQLSchema } from 'graphql';
-import { DynamoDB, StepFunctions } from 'aws-sdk';
-import { Subscription, Connection } from './model';
+import { ConnectionModel } from './model/connection';
+import { DynamoDB, DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
+import { DynamoStore } from '@shiftcoders/dynamo-easy';
 
 export type ServerArgs = {
   /** GraphQL schema containing subscriptions. */
@@ -29,8 +29,8 @@ export type ServerArgs = {
 
   /** Override default table names. */
   tableNames?: Partial<TableNames>;
-  /** Override default DynamoDB instance. */
-  dynamodb?: DynamoDB;
+  /** Required DynamoDB instance. */
+  dynamodb: DynamoDB;
 
   /** Called on incoming API Gateway `$connect` event. */
   onConnect?: (e: { event: APIGatewayEvent }) => MaybePromise<void>;
@@ -73,10 +73,9 @@ export type ServerArgs = {
 type MaybePromise<T> = T | Promise<T>;
 
 export type ServerClosure = {
-  mapper: DataMapper;
+  dynamodbClient: DynamoStore<ConnectionModel>;
   model: {
-    Subscription: typeof Subscription;
-    Connection: typeof Connection;
+    Connection: typeof ConnectionModel;
   };
 } & Omit<ServerArgs, 'tableNames' | 'dynamodb'>;
 

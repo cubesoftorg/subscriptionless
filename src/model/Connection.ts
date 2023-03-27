@@ -1,31 +1,40 @@
-import { attribute, hashKey } from '@aws/dynamodb-data-mapper-annotations';
+import 'reflect-metadata';
+import {
+  DateProperty,
+  Model,
+  PartitionKey,
+  Property,
+  SortKey,
+} from '@shiftcoders/dynamo-easy';
 import { APIGatewayEventRequestContext } from 'aws-lambda';
 import { addHours } from '../utils';
 
 /**
  * Connection established with `connection_init`
  */
-export class Connection {
+
+@Model({ tableName: 'connection' })
+export class ConnectionModel {
   /* ConnectionID */
-  @hashKey({ type: 'String' })
+  @PartitionKey()
+  pk: string = 'connection';
+
+  @SortKey()
+  @Property({ name: 'sk' })
   id: string;
 
   /** Time of creation */
-  @attribute({ defaultProvider: () => new Date() })
-  createdAt: Date;
+  @DateProperty()
+  createdAt: Date = new Date();
 
   /** Request context from $connect event */
-  @attribute()
   requestContext: APIGatewayEventRequestContext;
 
   /** connection_init payload (post-parse) */
-  @attribute()
   payload: Record<string, string>;
 
-  @attribute({ defaultProvider: () => addHours(new Date(), 3) })
-  ttl: Date;
+  ttl: Date = addHours(new Date(), 3);
 
   /** has a pong been returned */
-  @attribute({ defaultProvider: () => false })
-  hasPonged: boolean;
+  hasPonged: boolean = false;
 }

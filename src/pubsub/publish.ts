@@ -1,11 +1,5 @@
-import {
-  attributeNotExists,
-  equals,
-  ConditionExpression,
-} from '@aws/dynamodb-expressions';
 import { parse, execute, ExecutionResult } from 'graphql';
 import { MessageType } from 'graphql-ws';
-import { Subscription } from '../model';
 import { ServerClosure } from '../types';
 import { constructContext, isAsyncIterable, sendMessage } from '../utils';
 
@@ -15,75 +9,76 @@ type PubSubEvent = {
 };
 
 export const publish = (c: ServerClosure) => async (event: PubSubEvent) => {
-  const subscriptions = await getFilteredSubs(c)(event);
-  const iters = subscriptions.map(async (sub) => {
-    const result = execute({
-      schema: c.schema,
-      document: parse(sub.subscription.query),
-      rootValue: event,
-      contextValue: await constructContext(c)(sub),
-      variableValues: sub.subscription.variables,
-      operationName: sub.subscription.operationName,
-    });
+  // const subscriptions = await getFilteredSubs(c)(event);
+  // const iters = subscriptions.map(async (sub) => {
+  //   const result = execute({
+  //     schema: c.schema,
+  //     document: parse(sub.subscription.query),
+  //     rootValue: event,
+  //     contextValue: await constructContext(c)(sub),
+  //     variableValues: sub.subscription.variables,
+  //     operationName: sub.subscription.operationName,
+  //   });
 
-    // Support for @defer and @stream directives
-    const parts = isAsyncIterable<ExecutionResult>(result) ? result : [result];
-    for await (let part of parts) {
-      await sendMessage({
-        ...sub.requestContext,
-        message: {
-          id: sub.subscriptionId,
-          type: MessageType.Next,
-          payload: part,
-        },
-      });
-    }
-  });
-  return await Promise.all(iters);
+  //   // Support for @defer and @stream directives
+  //   const parts = isAsyncIterable<ExecutionResult>(result) ? result : [result];
+  //   for await (let part of parts) {
+  //     await sendMessage({
+  //       ...sub.requestContext,
+  //       message: {
+  //         id: sub.subscriptionId,
+  //         type: MessageType.Next,
+  //         payload: part,
+  //       },
+  //     });
+  //   }
+  // });
+  // return await Promise.all(iters);
+  return;
 };
 
-const getFilteredSubs =
-  (c: Omit<ServerClosure, 'gateway'>) =>
-  async (event: PubSubEvent): Promise<Subscription[]> => {
-    const flattenPayload = flatten(event.payload);
-    const iterator = c.mapper.query(
-      c.model.Subscription,
-      { topic: equals(event.topic) },
-      {
-        filter: {
-          type: 'And',
-          conditions: Object.entries(flattenPayload).reduce(
-            (p, [key, value]) => [
-              ...p,
-              {
-                type: 'Or',
-                conditions: [
-                  {
-                    ...attributeNotExists(),
-                    subject: `filter.${key}`,
-                  },
-                  {
-                    ...equals(value),
-                    subject: `filter.${key}`,
-                  },
-                ],
-              },
-            ],
-            [] as ConditionExpression[]
-          ),
-        },
-        indexName: 'TopicIndex',
-      }
-    );
+// const getFilteredSubs =
+//   (c: Omit<ServerClosure, 'gateway'>) =>
+//   async (event: PubSubEvent): Promise<Subscription[]> => {
+//     const flattenPayload = flatten(event.payload);
+//     const iterator = c.mapper.query(
+//       c.model.Subscription,
+//       { topic: equals(event.topic) },
+//       {
+//         filter: {
+//           type: 'And',
+//           conditions: Object.entries(flattenPayload).reduce(
+//             (p, [key, value]) => [
+//               ...p,
+//               {
+//                 type: 'Or',
+//                 conditions: [
+//                   {
+//                     ...attributeNotExists(),
+//                     subject: `filter.${key}`,
+//                   },
+//                   {
+//                     ...equals(value),
+//                     subject: `filter.${key}`,
+//                   },
+//                 ],
+//               },
+//             ],
+//             [] as ConditionExpression[]
+//           ),
+//         },
+//         indexName: 'TopicIndex',
+//       }
+//     );
 
-    // Aggregate all targets
-    const subs: Subscription[] = [];
-    for await (const sub of iterator) {
-      subs.push(sub);
-    }
+//     // Aggregate all targets
+//     const subs: Subscription[] = [];
+//     for await (const sub of iterator) {
+//       subs.push(sub);
+//     }
 
-    return subs;
-  };
+//     return subs;
+//   };
 
 export const flatten = (
   obj: object

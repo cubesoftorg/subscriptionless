@@ -1,5 +1,7 @@
 ## About
 
+This project is a fork of https://github.com/andyrichardson/subscriptionless but uses the @aws-sdk-v3 instead of the older v2 version which reaches end of support in 2023
+
 GraphQL subscriptions for AWS Lambda and API Gateway WebSockets.
 
 Have all the functionality of GraphQL subscriptions on a stateful server without the cost.

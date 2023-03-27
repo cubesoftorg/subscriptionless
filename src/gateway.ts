@@ -1,4 +1,4 @@
-import { Handler, APIGatewayEvent } from 'aws-lambda';
+import { Handler, APIGatewayEvent } from 'aws-lambda'; // lambda types
 import { GRAPHQL_TRANSPORT_WS_PROTOCOL, MessageType } from 'graphql-ws';
 import { ServerClosure, WebsocketResponse } from './types';
 import {

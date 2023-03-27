@@ -1,4 +1,11 @@
-import { ApiGatewayManagementApi } from 'aws-sdk';
+import {
+  ApiGatewayManagementApiClient,
+  DeleteConnectionCommand,
+  PostToConnectionCommand,
+  PostToConnectionCommandInput,
+  DeleteConnectionCommandInput,
+} from '@aws-sdk/client-apigatewaymanagementapi';
+
 import { APIGatewayEventRequestContext } from 'aws-lambda';
 import {
   ConnectionAckMessage,
@@ -22,26 +29,30 @@ export const sendMessage = (
     APIGatewayEventRequestContext,
     'connectionId' | 'domainName' | 'stage'
   >
-) =>
-  new ApiGatewayManagementApi({
+) => {
+  const postInput: PostToConnectionCommandInput = {
+    ConnectionId: a.connectionId!,
+    Data: Buffer.from(JSON.stringify(a.message)),
+  };
+  const postToConnectionCommand = new PostToConnectionCommand(postInput);
+  return new ApiGatewayManagementApiClient({
     apiVersion: 'latest',
     endpoint: `${a.domainName}/${a.stage}`,
-  })
-    .postToConnection({
-      ConnectionId: a.connectionId!,
-      Data: JSON.stringify(a.message),
-    })
-    .promise();
+  }).send(postToConnectionCommand);
+};
 
 export const deleteConnection = (
   a: Pick<
     APIGatewayEventRequestContext,
     'connectionId' | 'domainName' | 'stage'
   >
-) =>
-  new ApiGatewayManagementApi({
+) => {
+  const deleteInput: DeleteConnectionCommandInput = {
+    ConnectionId: a.connectionId!,
+  };
+  const deleteConnectionCommand = new DeleteConnectionCommand(deleteInput);
+  return new ApiGatewayManagementApiClient({
     apiVersion: 'latest',
     endpoint: `${a.domainName}/${a.stage}`,
-  })
-    .deleteConnection({ ConnectionId: a.connectionId! })
-    .promise();
+  }).send(deleteConnectionCommand);
+};

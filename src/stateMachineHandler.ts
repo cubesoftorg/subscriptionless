@@ -1,21 +1,21 @@
 import { MessageType } from 'graphql-ws';
-import { assign } from './model';
+import { ConnectionModel } from './model/connection';
 import { ServerClosure, StateFunctionInput } from './types';
 import { sendMessage, deleteConnection } from './utils';
 
 export const handleStateMachineEvent =
   (c: ServerClosure) =>
   async (input: StateFunctionInput): Promise<StateFunctionInput> => {
-    const connection = assign(new c.model.Connection(), {
-      id: input.connectionId,
-    });
-
     // Initial state - send ping message
     if (input.state === 'PING') {
       await sendMessage({ ...input, message: { type: MessageType.Ping } });
-      await c.mapper.update(assign(connection, { hasPonged: false }), {
-        onMissing: 'skip',
-      });
+
+      // On missing skip???
+      await c.dynamodbClient
+        .update('connection', input.connectionId)
+        .updateAttribute('hasPonged')
+        .set(false)
+        .exec();
       return {
         ...input,
         state: 'REVIEW',
@@ -24,8 +24,18 @@ export const handleStateMachineEvent =
     }
 
     // Follow up state - check if pong was returned
-    const conn = await c.mapper.get(connection);
-    if (conn.hasPonged) {
+    const conn = await c.dynamodbClient
+      .get('connection', input.connectionId)
+      .exec();
+
+    if (conn?.hasPonged) {
+      return {
+        ...input,
+        state: 'REVIEW',
+        seconds: c.ping?.interval!,
+      };
+    }
+    if (conn?.hasPonged) {
       return {
         ...input,
         state: 'PING',
