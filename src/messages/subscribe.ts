@@ -19,8 +19,8 @@ import {
   promisify,
   sendMessage,
 } from '../utils';
-import { assign } from '../model';
 import { ServerClosure, SubscribeHandler } from '../types';
+import { ConnectionModel } from '../model/connection';
 
 /** Handler function for 'subscribe' message. */
 export const subscribe: MessageHandler<SubscribeMessage> =
@@ -28,14 +28,12 @@ export const subscribe: MessageHandler<SubscribeMessage> =
   async ({ event, message }) => {
     try {
       const [connection] = await Promise.all([
-        await c.mapper.get(
-          assign(new c.model.Connection(), {
-            id: event.requestContext.connectionId!,
-          })
-        ),
+        await c.dynamodbClient
+          .get('connection', event.requestContext.connectionId)
+          .exec(),
         await promisify(() => c.onSubscribe?.({ event, message })),
       ]);
-      const connectionParams = connection.payload || {};
+      const connectionParams = connection || {};
 
       // GraphQL validation
       const errors = validateMessage(c)(message);
@@ -126,25 +124,25 @@ export const subscribe: MessageHandler<SubscribeMessage> =
         context,
         info
       ).definitions; // Access subscribe instance
-      await Promise.all(
-        topicDefinitions.map(async ({ topic, filter }) => {
-          const subscription = assign(new c.model.Subscription(), {
-            id: `${event.requestContext.connectionId}|${message.id}`,
-            topic,
-            filter: filter || {},
-            subscriptionId: message.id,
-            subscription: {
-              variableValues: args,
-              ...message.payload,
-            },
-            connectionId: event.requestContext.connectionId!,
-            connectionParams,
-            requestContext: event.requestContext,
-            ttl: connection.ttl,
-          });
-          await c.mapper.put(subscription);
-        })
-      );
+      // await Promise.all(
+      //   topicDefinitions.map(async ({ topic, filter }) => {
+      //     const subscription = assign(new c.model.Subscription(), {
+      //       id: `${event.requestContext.connectionId}|${message.id}`,
+      //       topic,
+      //       filter: filter || {},
+      //       subscriptionId: message.id,
+      //       subscription: {
+      //         variableValues: args,
+      //         ...message.payload,
+      //       },
+      //       connectionId: event.requestContext.connectionId!,
+      //       connectionParams,
+      //       requestContext: event.requestContext,
+      //       ttl: connection.ttl,
+      //     });
+      //     await c.mapper.put(subscription);
+      //   })
+      // );
     } catch (err) {
       await promisify(() => c.onError?.(err, { event, message }));
       await deleteConnection(event.requestContext);
